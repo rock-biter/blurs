@@ -1,35 +1,19 @@
-import {
-	BoxBlurMaterial,
-	DepthCopyMaterial,
-	DepthEffect,
-	EffectComposer,
-	EffectPass,
-	GaussianBlurMaterial,
-	RenderPass,
-	ShaderPass,
-} from 'postprocessing'
+import { EffectComposer, RenderPass, ShaderPass } from 'postprocessing'
 import './style.css'
 import * as THREE from 'three'
-import { Vector2 } from 'three'
-// __controls_import__
-// __gui_import__
-
-import blurBoxVertex from './shaders/box-blur-pass/vertex.glsl'
-import blurBoxFragment from './shaders/box-blur-pass/fragment.glsl'
-
-import blurKawaseVertex from './shaders/kawase/vertex.glsl'
-import blurKawaseFragment from './shaders/kawase/fragment.glsl'
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Pane } from 'tweakpane'
+
+import blurVertex from './shaders/box-blur/vertex.glsl'
+import blurFragment from './shaders/box-blur/fragment.glsl'
 
 /**
  * Debug
  */
 // __gui__
 const config = {
-	radius: 20,
-	sigma: 1,
+	radius: 5,
 }
 const pane = new Pane()
 
@@ -42,17 +26,6 @@ pane
 	.on('change', (ev) => {
 		blurHMaterial.uniforms.uRadius.value = ev.value
 		blurVMaterial.uniforms.uRadius.value = ev.value
-	})
-
-pane
-	.addBinding(config, 'sigma', {
-		min: 0.01,
-		max: 50,
-		step: 0.01,
-	})
-	.on('change', (ev) => {
-		blurHMaterial.uniforms.uSigma.value = ev.value
-		blurVMaterial.uniforms.uSigma.value = ev.value
 	})
 
 /**
@@ -102,8 +75,8 @@ camera.lookAt(new THREE.Vector3(0, 2.5, 0))
  * Show the axes of coordinates system
  */
 // __helper_axes__
-const axesHelper = new THREE.AxesHelper(3)
-scene.add(axesHelper)
+// const axesHelper = new THREE.AxesHelper(3)
+// scene.add(axesHelper)
 
 /**
  * renderer
@@ -117,64 +90,35 @@ const composer = new EffectComposer(renderer)
 const renderPass = new RenderPass(scene, camera)
 composer.addPass(renderPass)
 
+// add custom BOX BLUR pass
 const blurHMaterial = new THREE.ShaderMaterial({
-	vertexShader: blurBoxVertex,
-	fragmentShader: blurBoxFragment,
-	defines: { LABEL: 'boxblur' },
+	vertexShader: blurVertex,
+	fragmentShader: blurFragment,
 	uniforms: {
-		tDiffuse: new THREE.Uniform(null),
+		tDiffuse: new THREE.Uniform(),
 		uRadius: new THREE.Uniform(config.radius),
-		uDirection: new THREE.Uniform(new Vector2(1, 0)), // Horizontal blur
-		uSigma: new THREE.Uniform(config.sigma),
+		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
 	},
 })
+// horizontal blur pass
+const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
+composer.addPass(blurHPass)
+
+// blur vertical pass
 const blurVMaterial = new THREE.ShaderMaterial({
-	vertexShader: blurBoxVertex,
-	fragmentShader: blurBoxFragment,
-	defines: { LABEL: 'boxblur' },
+	vertexShader: blurVertex,
+	fragmentShader: blurFragment,
 	uniforms: {
-		tDiffuse: new THREE.Uniform(null),
+		tDiffuse: new THREE.Uniform(),
 		uRadius: new THREE.Uniform(config.radius),
-		uDirection: new THREE.Uniform(new Vector2(0, 1)), // Vertical blur
-		uSigma: new THREE.Uniform(config.sigma),
+		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
 	},
 })
 
-// const depthEffect = new DepthEffect(camera)
-// const effectPass = new EffectPass(camera, depthEffect)
-// composer.addPass(effectPass)
+// complexity now is O(2n)
 
-// composer.addPass(renderPass)
-
-// const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
-// composer.addPass(blurHPass)
-
-// const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
-// composer.addPass(blurVPass)
-const kernelPresets = [
-	[0.0, 1.0], // VERY_SMALL
-	[0.0, 1.0, 1.0], // SMALL
-	[0.0, 1.0, 1.0, 2.0], // MEDIUM
-	[0.0, 1.0, 2.0, 2.0, 3.0], // LARGE
-	[0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 5.0], // VERY_LARGE
-	[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 8.0, 9.0, 10.0], // HUGE
-]
-
-const kawaseKernel = kernelPresets[5]
-
-kawaseKernel.forEach((weight) => {
-	const material = new THREE.ShaderMaterial({
-		vertexShader: blurKawaseVertex,
-		fragmentShader: blurKawaseFragment,
-		defines: { LABEL: 'kawase' },
-		uniforms: {
-			tDiffuse: new THREE.Uniform(null),
-			uOffset: new THREE.Uniform(weight),
-		},
-	})
-
-	composer.addPass(new ShaderPass(material, 'tDiffuse'))
-})
+const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
+composer.addPass(blurVPass)
 
 handleResize()
 
@@ -216,6 +160,7 @@ function tic() {
 	// __controls_update__
 	controls.update(dt)
 
+	// renderer.render(scene, camera)
 	composer.render()
 
 	requestAnimationFrame(tic)
@@ -238,7 +183,8 @@ function handleResize() {
 
 	const pixelRatio = Math.min(window.devicePixelRatio, 2)
 	renderer.setPixelRatio(pixelRatio)
-	const res = new Vector2()
+
+	const res = new THREE.Vector2()
 	renderer.getDrawingBufferSize(res)
 	composer.setSize(res.x, res.y)
 }
