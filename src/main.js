@@ -42,7 +42,7 @@ const scene = new THREE.Scene()
 const material = new THREE.MeshStandardMaterial({ color: 'coral' })
 const geometry = new THREE.SphereGeometry(1, 32, 32)
 const mesh = new THREE.Mesh(geometry, material)
-mesh.position.y += 0.5
+// mesh.position.y += 0.5
 scene.add(mesh)
 
 // __floor__
@@ -68,15 +68,15 @@ const sizes = {
  */
 const fov = 60
 const camera = new THREE.PerspectiveCamera(fov, sizes.width / sizes.height, 0.1)
-camera.position.set(4, 4, 4)
+camera.position.set(2, 2, 2)
 camera.lookAt(new THREE.Vector3(0, 2.5, 0))
 
 /**
  * Show the axes of coordinates system
  */
 // __helper_axes__
-// const axesHelper = new THREE.AxesHelper(3)
-// scene.add(axesHelper)
+const axesHelper = new THREE.AxesHelper(3)
+scene.add(axesHelper)
 
 /**
  * renderer
