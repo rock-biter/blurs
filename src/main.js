@@ -29,7 +29,7 @@ import { Pane } from 'tweakpane'
 // __gui__
 const config = {
 	radius: 20,
-	sigma: 1,
+	sigma: 10,
 }
 const pane = new Pane()
 
@@ -146,11 +146,11 @@ const blurVMaterial = new THREE.ShaderMaterial({
 
 // composer.addPass(renderPass)
 
-// const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
-// composer.addPass(blurHPass)
+const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
+composer.addPass(blurHPass)
 
-// const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
-// composer.addPass(blurVPass)
+const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
+composer.addPass(blurVPass)
 const kernelPresets = [
 	[0.0, 1.0], // VERY_SMALL
 	[0.0, 1.0, 1.0], // SMALL
@@ -173,7 +173,7 @@ kawaseKernel.forEach((weight) => {
 		},
 	})
 
-	composer.addPass(new ShaderPass(material, 'tDiffuse'))
+	// composer.addPass(new ShaderPass(material, 'tDiffuse'))
 })
 
 handleResize()
