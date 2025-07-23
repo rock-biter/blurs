@@ -25,10 +25,6 @@ void main() {
 
   diffuse /= normalization;
 
-  if(vUv.x < 0.5) {
-    diffuse = texture(tDiffuse, vUv).rgb;
-  }
-
   gl_FragColor = vec4(diffuse, 1.0);
 
   #include <tonemapping_fragment>
