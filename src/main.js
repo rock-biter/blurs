@@ -5,8 +5,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Pane } from 'tweakpane'
 
-import blurVertex from './shaders/box-blur/vertex.glsl'
-import blurFragment from './shaders/box-blur/fragment.glsl'
+import blurVertex from './shaders/gaussian-blur/vertex.glsl'
+import blurFragment from './shaders/gaussian-blur/fragment.glsl'
 
 /**
  * Debug
@@ -14,6 +14,7 @@ import blurFragment from './shaders/box-blur/fragment.glsl'
 // __gui__
 const config = {
 	radius: 5,
+	sigma: 10,
 }
 const pane = new Pane()
 
@@ -26,6 +27,17 @@ pane
 	.on('change', (ev) => {
 		blurHMaterial.uniforms.uRadius.value = ev.value
 		blurVMaterial.uniforms.uRadius.value = ev.value
+	})
+
+pane
+	.addBinding(config, 'sigma', {
+		min: 0,
+		max: 30,
+		step: 0.01,
+	})
+	.on('change', (ev) => {
+		blurHMaterial.uniforms.uSigma.value = ev.value
+		blurVMaterial.uniforms.uSigma.value = ev.value
 	})
 
 /**
@@ -97,6 +109,7 @@ const blurHMaterial = new THREE.ShaderMaterial({
 	uniforms: {
 		tDiffuse: new THREE.Uniform(),
 		uRadius: new THREE.Uniform(config.radius),
+		uSigma: new THREE.Uniform(config.sigma),
 		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
 	},
 })
@@ -111,6 +124,7 @@ const blurVMaterial = new THREE.ShaderMaterial({
 	uniforms: {
 		tDiffuse: new THREE.Uniform(),
 		uRadius: new THREE.Uniform(config.radius),
+		uSigma: new THREE.Uniform(config.sigma),
 		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
 	},
 })
