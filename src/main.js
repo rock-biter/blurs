@@ -122,7 +122,7 @@ function generateGKernel(radius, sigma, kernel = []) {
 		kernel[i] /= sum
 	}
 
-	console.log(kernel)
+	// console.log(kernel)
 }
 
 generateGKernel(config.radius, config.sigma, kernel)

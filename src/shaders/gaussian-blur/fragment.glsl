@@ -19,7 +19,6 @@ void main() {
   //   normalization += w;
   // }
 
-
   ivec2 iRes = textureSize(tDiffuse, 0);
   vec2 texel = 1.0 / vec2(iRes);
   vec3 diffuse = vec3(0.0);
