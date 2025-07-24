@@ -27,6 +27,7 @@ pane
 	.on('change', (ev) => {
 		blurHMaterial.uniforms.uRadius.value = ev.value
 		blurVMaterial.uniforms.uRadius.value = ev.value
+		generateGKernel(config.radius, config.sigma, kernel)
 	})
 
 pane
@@ -38,6 +39,7 @@ pane
 	.on('change', (ev) => {
 		blurHMaterial.uniforms.uSigma.value = ev.value
 		blurVMaterial.uniforms.uSigma.value = ev.value
+		generateGKernel(config.radius, config.sigma, kernel)
 	})
 
 /**
@@ -102,6 +104,29 @@ const composer = new EffectComposer(renderer)
 const renderPass = new RenderPass(scene, camera)
 composer.addPass(renderPass)
 
+const kernel = []
+
+function generateGKernel(radius, sigma, kernel = []) {
+	const size = radius * 2 + 1
+	let sum = 0
+
+	for (let i = 0; i < size; i++) {
+		const x = i - radius
+		const value = Math.exp(-(x * x) / (2 * sigma * sigma))
+		kernel[i] = value
+		sum += value
+	}
+
+	// normalize the kernel
+	for (let i = 0; i < kernel.length; i++) {
+		kernel[i] /= sum
+	}
+
+	console.log(kernel)
+}
+
+generateGKernel(config.radius, config.sigma, kernel)
+
 // add custom BOX BLUR pass
 const blurHMaterial = new THREE.ShaderMaterial({
 	vertexShader: blurVertex,
@@ -111,6 +136,7 @@ const blurHMaterial = new THREE.ShaderMaterial({
 		uRadius: new THREE.Uniform(config.radius),
 		uSigma: new THREE.Uniform(config.sigma),
 		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
+		uKernel: new THREE.Uniform(kernel),
 	},
 })
 // horizontal blur pass
@@ -126,6 +152,7 @@ const blurVMaterial = new THREE.ShaderMaterial({
 		uRadius: new THREE.Uniform(config.radius),
 		uSigma: new THREE.Uniform(config.sigma),
 		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
+		uKernel: new THREE.Uniform(kernel),
 	},
 })
 
