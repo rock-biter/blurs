@@ -108,18 +108,18 @@ const kernel = []
 
 function generateGKernel(radius, sigma, kernel = []) {
 	const size = radius * 2 + 1
-	let sum = 0
+	let normalization = 0
 
 	for (let i = 0; i < size; i++) {
 		const x = i - radius
 		const value = Math.exp(-(x * x) / (2 * sigma * sigma))
 		kernel[i] = value
-		sum += value
+		normalization += value
 	}
 
 	// normalize the kernel
 	for (let i = 0; i < kernel.length; i++) {
-		kernel[i] /= sum
+		kernel[i] /= normalization
 	}
 
 	// console.log(kernel)
