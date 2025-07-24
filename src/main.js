@@ -7,6 +7,7 @@ import { Pane } from 'tweakpane'
 
 import blurVertex from './shaders/gaussian-blur/vertex.glsl'
 import blurFragment from './shaders/gaussian-blur/fragment.glsl'
+import Kawase from './kawase'
 
 /**
  * Debug
@@ -15,6 +16,7 @@ import blurFragment from './shaders/gaussian-blur/fragment.glsl'
 const config = {
 	radius: 5,
 	sigma: 10,
+	kawaseScale: 1,
 }
 const pane = new Pane()
 
@@ -38,6 +40,34 @@ pane
 	.on('change', (ev) => {
 		blurHMaterial.uniforms.uSigma.value = ev.value
 		blurVMaterial.uniforms.uSigma.value = ev.value
+	})
+
+pane
+	.addBlade({
+		view: 'list',
+		label: 'kernel',
+		options: [
+			{ text: 'very small', value: 0 },
+			{ text: 'small', value: 1 },
+			{ text: 'medium', value: 2 },
+			{ text: 'large', value: 3 },
+			{ text: 'very large', value: 4 },
+			{ text: 'huge', value: 5 },
+		],
+		value: 3,
+	})
+	.on('change', (ev) => {
+		kawase.setKernel(ev.value)
+	})
+
+pane
+	.addBinding(config, 'kawaseScale', {
+		min: 0,
+		max: 4,
+		step: 0.1,
+	})
+	.on('change', (ev) => {
+		kawase.setScale(ev.value)
 	})
 
 /**
@@ -98,41 +128,72 @@ const renderer = new THREE.WebGLRenderer({
 })
 document.body.appendChild(renderer.domElement)
 
-const composer = new EffectComposer(renderer)
-const renderPass = new RenderPass(scene, camera)
-composer.addPass(renderPass)
+// const composer = new EffectComposer(renderer)
+// const renderPass = new RenderPass(scene, camera)
+// composer.addPass(renderPass)
 
-// add custom BOX BLUR pass
-const blurHMaterial = new THREE.ShaderMaterial({
-	vertexShader: blurVertex,
-	fragmentShader: blurFragment,
-	uniforms: {
-		tDiffuse: new THREE.Uniform(),
-		uRadius: new THREE.Uniform(config.radius),
-		uSigma: new THREE.Uniform(config.sigma),
-		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
-	},
-})
-// horizontal blur pass
-const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
-composer.addPass(blurHPass)
+// // add custom BOX BLUR pass
+// const blurHMaterial = new THREE.ShaderMaterial({
+// 	vertexShader: blurVertex,
+// 	fragmentShader: blurFragment,
+// 	uniforms: {
+// 		tDiffuse: new THREE.Uniform(),
+// 		uRadius: new THREE.Uniform(config.radius),
+// 		uSigma: new THREE.Uniform(config.sigma),
+// 		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
+// 	},
+// })
+// // horizontal blur pass
+// const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
+// composer.addPass(blurHPass)
 
-// blur vertical pass
-const blurVMaterial = new THREE.ShaderMaterial({
-	vertexShader: blurVertex,
-	fragmentShader: blurFragment,
-	uniforms: {
-		tDiffuse: new THREE.Uniform(),
-		uRadius: new THREE.Uniform(config.radius),
-		uSigma: new THREE.Uniform(config.sigma),
-		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
-	},
-})
+// // blur vertical pass
+// const blurVMaterial = new THREE.ShaderMaterial({
+// 	vertexShader: blurVertex,
+// 	fragmentShader: blurFragment,
+// 	uniforms: {
+// 		tDiffuse: new THREE.Uniform(),
+// 		uRadius: new THREE.Uniform(config.radius),
+// 		uSigma: new THREE.Uniform(config.sigma),
+// 		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
+// 	},
+// })
 
-// complexity now is O(2n)
+// // complexity now is O(2n)
 
-const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
-composer.addPass(blurVPass)
+// const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
+// composer.addPass(blurVPass)
+const ks = 4
+const kawase = new Kawase(renderer, 3, sizes.width / ks, sizes.height / ks, 0.5)
+
+const sceneRT = kawase.inputRT
+
+const finalScene = new THREE.Scene()
+const triangle = new THREE.Mesh(
+	kawase.geometry,
+	new THREE.ShaderMaterial({
+		vertexShader: /* glsl */ `
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = vec4(position, 1.0);
+		}`,
+		fragmentShader: /* glsl */ `
+		uniform sampler2D tDiffuse;
+		varying vec2 vUv;
+		void main() {
+			gl_FragColor = texture(tDiffuse, vUv);
+			#include <tonemapping_fragment>
+			#include <colorspace_fragment>
+		}`,
+		uniforms: {
+			tDiffuse: new THREE.Uniform(null),
+		},
+	})
+)
+finalScene.add(triangle)
+
+console.log(triangle)
 
 handleResize()
 
@@ -174,8 +235,17 @@ function tic() {
 	// __controls_update__
 	controls.update(dt)
 
-	// renderer.render(scene, camera)
-	composer.render()
+	renderer.setRenderTarget(sceneRT)
+	renderer.clear()
+
+	renderer.render(scene, camera)
+
+	kawase.render()
+	triangle.material.uniforms.tDiffuse.value = kawase.getCurrentBuffer().texture
+
+	renderer.setRenderTarget(null)
+	renderer.render(finalScene, camera)
+	// composer.render()
 
 	requestAnimationFrame(tic)
 }
@@ -200,5 +270,6 @@ function handleResize() {
 
 	const res = new THREE.Vector2()
 	renderer.getDrawingBufferSize(res)
-	composer.setSize(res.x, res.y)
+	kawase.resize(res.x / ks, res.y / ks)
+	// composer.setSize(res.x, res.y)
 }
