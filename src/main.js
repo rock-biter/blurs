@@ -53,6 +53,7 @@ pane
 			{ text: 'large', value: 3 },
 			{ text: 'very large', value: 4 },
 			{ text: 'huge', value: 5 },
+			{ text: 'none', value: 6 },
 		],
 		value: 3,
 	})
@@ -84,8 +85,18 @@ const scene = new THREE.Scene()
 const material = new THREE.MeshStandardMaterial({ color: 'coral' })
 const geometry = new THREE.SphereGeometry(1, 32, 32)
 const mesh = new THREE.Mesh(geometry, material)
-// mesh.position.y += 0.5
+
+for (let i = 0; i < 30; i++) {
+	const m = mesh.clone()
+	m.position.x = Math.random() * 5 - 2.5
+	m.position.y = Math.random() * 5 - 2.5
+	m.position.z = Math.random() * 5 - 2.5
+	m.scale.setScalar(Math.random() * 0.3)
+
+	scene.add(m)
+}
 scene.add(mesh)
+// mesh.position.y += 0.5
 
 // __floor__
 /**
@@ -163,7 +174,7 @@ document.body.appendChild(renderer.domElement)
 
 // const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
 // composer.addPass(blurVPass)
-const ks = 4
+const ks = 8
 const kawase = new Kawase(renderer, 3, sizes.width / ks, sizes.height / ks, 0.5)
 
 const sceneRT = kawase.inputRT

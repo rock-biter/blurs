@@ -18,7 +18,8 @@ const kernelPresets = [
 	[0.0, 1.0, 1.0, 2.0],
 	[0.0, 1.0, 2.0, 2.0, 3.0],
 	[0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 5.0],
-	[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 8.0, 9.0, 10.0],
+	[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+	[],
 ]
 
 export default class kawase {
@@ -100,13 +101,14 @@ export default class kawase {
       varying vec2 vUv1; // top right
       varying vec2 vUv2; // bottom right
       varying vec2 vUv3; // bottom left
+      varying vec2 vUv;
 
       void main() {
-
+        vUv = uv;
         ivec2 size = textureSize(tDiffuse, 0);
         vec4 texel = vec4(1. / vec2(size.xy), 0.5 / vec2(size.xy)); 
 
-        vec2 dUv = (texel.xy * vec2(uOffset) + texel.zw) * uScale;
+        vec2 dUv = (texel.xy * vec2(uOffset) ) * uScale + texel.zw;
         vUv0 = uv + vec2(-dUv.x, dUv.y);
         vUv1 = uv + vec2(dUv.x, dUv.y);
         vUv2 = uv + vec2(dUv.x, -dUv.y);
@@ -122,6 +124,7 @@ export default class kawase {
       varying vec2 vUv1; // top right
       varying vec2 vUv2; // bottom right
       varying vec2 vUv3; // bottom left
+      varying vec2 vUv;
       
       void main() {
 
@@ -162,8 +165,8 @@ export default class kawase {
 			format: RGBAFormat,
 			depthBuffer: true,
 			stencilBuffer: false,
-			// minFilter: LinearFilter,
-			// magFilter: LinearFilter,
+			minFilter: LinearFilter,
+			magFilter: LinearFilter,
 		})
 
 		return RT
