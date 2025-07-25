@@ -174,7 +174,7 @@ document.body.appendChild(renderer.domElement)
 
 // const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
 // composer.addPass(blurVPass)
-const ks = 8
+const ks = 4
 const kawase = new Kawase(renderer, 3, sizes.width / ks, sizes.height / ks, 0.5)
 
 const sceneRT = kawase.inputRT
