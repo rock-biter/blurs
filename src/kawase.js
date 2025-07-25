@@ -176,7 +176,6 @@ export default class kawase {
 		this.prevBuffer = this.inputRT
 		// // loop through the kernel
 		for (let i = 0; i < this.kernel.length; i++) {
-			console.log(`Rendering pass ${i} with offset ${this.kernel[i]}`)
 			const buffer = (i & 1) === 0 ? this.rt1 : this.rt2
 			this.material.uniforms.uOffset.value = this.kernel[i]
 			this.material.uniforms.tDiffuse.value = this.prevBuffer.texture
