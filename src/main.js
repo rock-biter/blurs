@@ -8,67 +8,40 @@ import { Pane } from 'tweakpane'
 import blurVertex from './shaders/gaussian-blur/vertex.glsl'
 import blurFragment from './shaders/gaussian-blur/fragment.glsl'
 import Kawase from './kawase'
+import MipmapBlur from './mipmap-blur'
 
 /**
  * Debug
  */
 // __gui__
 const config = {
-	radius: 5,
+	radius: 1,
 	sigma: 10,
 	kawaseScale: 1,
+	levels: 4,
 }
 const pane = new Pane()
 
 pane
-	.addBinding(config, 'radius', {
-		min: 0,
-		max: 30,
+	.addBinding(config, 'levels', {
+		min: 1,
+		max: 12,
 		step: 1,
 	})
 	.on('change', (ev) => {
-		blurHMaterial.uniforms.uRadius.value = ev.value
-		blurVMaterial.uniforms.uRadius.value = ev.value
+		// Update the mipmap levels in the MipmapBlur instance
+		mipmapBlur.levels = ev.value
 	})
 
 pane
-	.addBinding(config, 'sigma', {
+	.addBinding(config, 'radius', {
 		min: 0,
-		max: 30,
+		max: 1,
 		step: 0.01,
 	})
 	.on('change', (ev) => {
-		blurHMaterial.uniforms.uSigma.value = ev.value
-		blurVMaterial.uniforms.uSigma.value = ev.value
-	})
-
-pane
-	.addBlade({
-		view: 'list',
-		label: 'kernel',
-		options: [
-			{ text: 'very small', value: 0 },
-			{ text: 'small', value: 1 },
-			{ text: 'medium', value: 2 },
-			{ text: 'large', value: 3 },
-			{ text: 'very large', value: 4 },
-			{ text: 'huge', value: 5 },
-			{ text: 'none', value: 6 },
-		],
-		value: 3,
-	})
-	.on('change', (ev) => {
-		kawase.setKernel(ev.value)
-	})
-
-pane
-	.addBinding(config, 'kawaseScale', {
-		min: 0,
-		max: 4,
-		step: 0.1,
-	})
-	.on('change', (ev) => {
-		kawase.setScale(ev.value)
+		// Update the mipmap levels in the MipmapBlur instance
+		mipmapBlur.upsamplingMaterial.uniforms.radius.value = ev.value
 	})
 
 /**
@@ -139,49 +112,33 @@ const renderer = new THREE.WebGLRenderer({
 })
 document.body.appendChild(renderer.domElement)
 
-// const composer = new EffectComposer(renderer)
-// const renderPass = new RenderPass(scene, camera)
-// composer.addPass(renderPass)
+const mipmapBlur = new MipmapBlur(
+	renderer,
+	config.levels,
+	sizes.width,
+	sizes.height,
+	config.radius
+)
 
-// // add custom BOX BLUR pass
-// const blurHMaterial = new THREE.ShaderMaterial({
-// 	vertexShader: blurVertex,
-// 	fragmentShader: blurFragment,
-// 	uniforms: {
-// 		tDiffuse: new THREE.Uniform(),
-// 		uRadius: new THREE.Uniform(config.radius),
-// 		uSigma: new THREE.Uniform(config.sigma),
-// 		uDirection: new THREE.Uniform(new THREE.Vector2(1.0, 0.0)),
-// 	},
-// })
-// // horizontal blur pass
-// const blurHPass = new ShaderPass(blurHMaterial, 'tDiffuse')
-// composer.addPass(blurHPass)
+const sceneRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
+	format: THREE.RGBAFormat,
+	depthBuffer: true,
+	stencilBuffer: false,
+	minFilter: THREE.LinearFilter,
+	magFilter: THREE.LinearFilter,
+})
 
-// // blur vertical pass
-// const blurVMaterial = new THREE.ShaderMaterial({
-// 	vertexShader: blurVertex,
-// 	fragmentShader: blurFragment,
-// 	uniforms: {
-// 		tDiffuse: new THREE.Uniform(),
-// 		uRadius: new THREE.Uniform(config.radius),
-// 		uSigma: new THREE.Uniform(config.sigma),
-// 		uDirection: new THREE.Uniform(new THREE.Vector2(0.0, 1.0)),
-// 	},
-// })
-
-// // complexity now is O(2n)
-
-// const blurVPass = new ShaderPass(blurVMaterial, 'tDiffuse')
-// composer.addPass(blurVPass)
-const ks = 4
-const kawase = new Kawase(renderer, 3, sizes.width / ks, sizes.height / ks, 0.5)
-
-const sceneRT = kawase.inputRT
+const sceneOutputRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
+	format: THREE.RGBAFormat,
+	depthBuffer: true,
+	stencilBuffer: false,
+	minFilter: THREE.LinearFilter,
+	magFilter: THREE.LinearFilter,
+})
 
 const finalScene = new THREE.Scene()
 const triangle = new THREE.Mesh(
-	kawase.geometry,
+	mipmapBlur.geometry,
 	new THREE.ShaderMaterial({
 		vertexShader: /* glsl */ `
 		varying vec2 vUv;
@@ -205,6 +162,8 @@ const triangle = new THREE.Mesh(
 finalScene.add(triangle)
 
 console.log(triangle)
+
+console.log(mipmapBlur)
 
 handleResize()
 
@@ -251,8 +210,9 @@ function tic() {
 
 	renderer.render(scene, camera)
 
-	kawase.render()
-	triangle.material.uniforms.tDiffuse.value = kawase.getCurrentBuffer().texture
+	// kawase.render()
+	mipmapBlur.render(sceneRT, sceneOutputRT)
+	triangle.material.uniforms.tDiffuse.value = sceneOutputRT.texture
 
 	renderer.setRenderTarget(null)
 	renderer.render(finalScene, camera)
@@ -281,6 +241,8 @@ function handleResize() {
 
 	const res = new THREE.Vector2()
 	renderer.getDrawingBufferSize(res)
-	kawase.resize(res.x / ks, res.y / ks)
+	sceneRT.setSize(res.x, res.y)
+	sceneOutputRT.setSize(res.x, res.y)
+	mipmapBlur.setSize(res.x, res.y)
 	// composer.setSize(res.x, res.y)
 }
