@@ -1,6 +1,7 @@
 import {
 	BufferAttribute,
 	BufferGeometry,
+	HalfFloatType,
 	LinearFilter,
 	Mesh,
 	PerspectiveCamera,
@@ -167,6 +168,7 @@ export default class kawase {
 			stencilBuffer: false,
 			minFilter: LinearFilter,
 			magFilter: LinearFilter,
+			type: HalfFloatType,
 		})
 
 		return RT
