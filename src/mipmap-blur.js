@@ -1,6 +1,7 @@
 import {
 	BufferAttribute,
 	BufferGeometry,
+	HalfFloatType,
 	LinearFilter,
 	Mesh,
 	NearestFilter,
@@ -31,6 +32,7 @@ export default class MipmapBlur {
 			stencilBuffer: false,
 			minFilter: LinearFilter,
 			magFilter: LinearFilter,
+			type: HalfFloatType,
 		})
 		this.renderTarget.texture.name = 'Upsampling.Mipmap0'
 

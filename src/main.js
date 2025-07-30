@@ -126,6 +126,7 @@ const sceneRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
 	stencilBuffer: false,
 	minFilter: THREE.LinearFilter,
 	magFilter: THREE.LinearFilter,
+	type: THREE.HalfFloatType,
 })
 
 const sceneOutputRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
@@ -134,6 +135,7 @@ const sceneOutputRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
 	stencilBuffer: false,
 	minFilter: THREE.LinearFilter,
 	magFilter: THREE.LinearFilter,
+	type: THREE.HalfFloatType,
 })
 
 const finalScene = new THREE.Scene()
