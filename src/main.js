@@ -15,10 +15,13 @@ import MipmapBlur from './mipmap-blur'
  */
 // __gui__
 const config = {
-	radius: 1,
+	radius: 0.8,
 	sigma: 10,
 	kawaseScale: 1,
-	levels: 4,
+	levels: 5,
+	threshold: 0.25,
+	smoothing: 0.35,
+	intensity: 2,
 }
 const pane = new Pane()
 
@@ -44,26 +47,65 @@ pane
 		mipmapBlur.upsamplingMaterial.uniforms.radius.value = ev.value
 	})
 
+pane
+	.addBinding(config, 'threshold', {
+		min: 0,
+		max: 2,
+		step: 0.01,
+	})
+	.on('change', (ev) => {
+		// Update the mipmap levels in the MipmapBlur instance
+		luminanceMaterial.uniforms.threshold.value = ev.value
+	})
+
+pane
+	.addBinding(config, 'smoothing', {
+		min: 0,
+		max: 1,
+		step: 0.01,
+	})
+	.on('change', (ev) => {
+		// Update the mipmap levels in the MipmapBlur instance
+		luminanceMaterial.uniforms.smoothing.value = ev.value
+	})
+
+pane
+	.addBinding(config, 'intensity', {
+		min: 0,
+		max: 3,
+		step: 0.01,
+	})
+	.on('change', (ev) => {
+		// Update the mipmap levels in the MipmapBlur instance
+		outputMaterial.uniforms.intensity.value = ev.value
+	})
+
 /**
  * Scene
  */
 const scene = new THREE.Scene()
-// scene.background = new THREE.Color(0xdedede)
 
 // __box__
 /**
  * BOX
  */
 // const material = new THREE.MeshNormalMaterial()
-const material = new THREE.MeshStandardMaterial({ color: 'coral' })
+const coral = new THREE.MeshStandardMaterial({ color: 'coral' })
+const white = new THREE.MeshStandardMaterial({ color: 'lime' })
+const blue = new THREE.MeshStandardMaterial({ color: 'blue' })
+const red = new THREE.MeshStandardMaterial({ color: 'red' })
+const yellow = new THREE.MeshStandardMaterial({ color: 'yellow' })
+const black = new THREE.MeshStandardMaterial({ color: 'black' })
+const colors = [coral, white, blue, red, black, yellow]
 const geometry = new THREE.SphereGeometry(1, 32, 32)
-const mesh = new THREE.Mesh(geometry, material)
+const mesh = new THREE.Mesh(geometry, white)
 
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 40; i++) {
 	const m = mesh.clone()
-	m.position.x = Math.random() * 5 - 2.5
-	m.position.y = Math.random() * 5 - 2.5
-	m.position.z = Math.random() * 5 - 2.5
+	m.material = colors[i % colors.length]
+	m.position.x = Math.random() * 6 - 3
+	m.position.y = Math.random() * 6 - 3
+	m.position.z = Math.random() * 6 - 3
 	m.scale.setScalar(Math.random() * 0.3)
 
 	scene.add(m)
@@ -124,41 +166,89 @@ const sceneRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
 	format: THREE.RGBAFormat,
 	depthBuffer: true,
 	stencilBuffer: false,
-	minFilter: THREE.LinearFilter,
-	magFilter: THREE.LinearFilter,
+	type: THREE.HalfFloatType,
 })
+
+const luminanceSceneRT = new THREE.WebGLRenderTarget(
+	sizes.width,
+	sizes.height,
+	{
+		format: THREE.RGBAFormat,
+		depthBuffer: true,
+		stencilBuffer: false,
+		type: THREE.HalfFloatType,
+	}
+)
 
 const sceneOutputRT = new THREE.WebGLRenderTarget(sizes.width, sizes.height, {
 	format: THREE.RGBAFormat,
 	depthBuffer: true,
 	stencilBuffer: false,
-	minFilter: THREE.LinearFilter,
-	magFilter: THREE.LinearFilter,
+	type: THREE.HalfFloatType,
 })
 
-const finalScene = new THREE.Scene()
-const triangle = new THREE.Mesh(
-	mipmapBlur.geometry,
-	new THREE.ShaderMaterial({
-		vertexShader: /* glsl */ `
+const luminanceMaterial = new THREE.ShaderMaterial({
+	vertexShader: /* glsl */ `
 		varying vec2 vUv;
 		void main() {
 			vUv = uv;
 			gl_Position = vec4(position, 1.0);
 		}`,
-		fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
 		uniform sampler2D tDiffuse;
+		uniform float threshold;
+		uniform float smoothing;
 		varying vec2 vUv;
 		void main() {
-			gl_FragColor = texture(tDiffuse, vUv);
+
+			vec4 texel = texture(tDiffuse, vUv);
+
+			float l = 0.299 * texel.r + 0.587 * texel.g + 0.114 * texel.b;
+
+			l = smoothstep(threshold, threshold + smoothing, l);
+
+			gl_FragColor = vec4(texel.rgb * clamp(l,0.0,1.0), l);
 			#include <tonemapping_fragment>
 			#include <colorspace_fragment>
 		}`,
-		uniforms: {
-			tDiffuse: new THREE.Uniform(null),
-		},
-	})
-)
+	uniforms: {
+		tDiffuse: new THREE.Uniform(null),
+		threshold: new THREE.Uniform(config.threshold),
+		smoothing: new THREE.Uniform(config.smoothing),
+	},
+})
+
+const outputMaterial = new THREE.ShaderMaterial({
+	vertexShader: /* glsl */ `
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = vec4(position, 1.0);
+		}`,
+	fragmentShader: /* glsl */ `
+		uniform sampler2D tDiffuse;
+		uniform sampler2D tBloom;
+		uniform float intensity;
+		varying vec2 vUv;
+		void main() {
+			vec4 color = texture(tDiffuse, vUv);
+			vec4 colorBloom = texture(tBloom, vUv);
+			vec4 c = color + colorBloom * intensity;
+			
+
+			gl_FragColor = vec4(c.rgb,1.0);
+			#include <tonemapping_fragment>
+			#include <colorspace_fragment>
+		}`,
+	uniforms: {
+		tDiffuse: new THREE.Uniform(null),
+		tBloom: new THREE.Uniform(null),
+		intensity: new THREE.Uniform(0.5),
+	},
+})
+
+const finalScene = new THREE.Scene()
+const triangle = new THREE.Mesh(mipmapBlur.geometry, outputMaterial)
 finalScene.add(triangle)
 
 console.log(triangle)
@@ -177,8 +267,8 @@ controls.enableDamping = true
 /**
  * Lights
  */
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.5)
-const directionalLight = new THREE.DirectionalLight(0xffffff, 4.5)
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.05)
+const directionalLight = new THREE.DirectionalLight(0xffffff, 8.5)
 directionalLight.position.set(3, 10, 7)
 scene.add(ambientLight, directionalLight)
 // scene.background = new THREE.Color()
@@ -210,9 +300,18 @@ function tic() {
 
 	renderer.render(scene, camera)
 
+	renderer.setRenderTarget(luminanceSceneRT)
+	triangle.material = luminanceMaterial
+	luminanceMaterial.uniforms.tDiffuse.value = sceneRT.texture
+
+	renderer.render(finalScene, camera)
+
 	// kawase.render()
-	mipmapBlur.render(sceneRT, sceneOutputRT)
-	triangle.material.uniforms.tDiffuse.value = sceneOutputRT.texture
+	mipmapBlur.render(luminanceSceneRT, sceneOutputRT)
+
+	triangle.material = outputMaterial
+	triangle.material.uniforms.tDiffuse.value = sceneRT.texture
+	triangle.material.uniforms.tBloom.value = sceneOutputRT.texture
 
 	renderer.setRenderTarget(null)
 	renderer.render(finalScene, camera)
@@ -243,6 +342,7 @@ function handleResize() {
 	renderer.getDrawingBufferSize(res)
 	sceneRT.setSize(res.x, res.y)
 	sceneOutputRT.setSize(res.x, res.y)
+	luminanceSceneRT.setSize(res.x, res.y)
 	mipmapBlur.setSize(res.x, res.y)
 	// composer.setSize(res.x, res.y)
 }
