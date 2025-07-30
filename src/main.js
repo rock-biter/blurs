@@ -243,7 +243,7 @@ const outputMaterial = new THREE.ShaderMaterial({
 	uniforms: {
 		tDiffuse: new THREE.Uniform(null),
 		tBloom: new THREE.Uniform(null),
-		intensity: new THREE.Uniform(0.5),
+		intensity: new THREE.Uniform(config.intensity),
 	},
 })
 
